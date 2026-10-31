@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "objectlab-mcp"
+version = "0.1.0"
+description = "Object Lab: Names every part of an object, measures it from sources, builds it, and gives it a finish."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=2.0,<3",
+    "weaponlab-mcp @ git+https://github.com/hpdkhoa/weaponlab-mcp.git",
+    "modellab-mcp @ git+https://github.com/hpdkhoa/modellab-mcp.git",
+    "coatinglab-mcp @ git+https://github.com/hpdkhoa/coatinglab-mcp.git",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+objectlab-mcp = "objectlab.server:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/objectlab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
