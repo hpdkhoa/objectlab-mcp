@@ -82,3 +82,41 @@ def test_a_fresh_cache_skips_blender_and_a_changed_blend_relabels(tmp_path, monk
     rig.write_bytes(b"changed")
     assert M.label("M1911A1", str(src), str(rig), "Mesh", str(tmp_path / "out"))["cached"] is False
     assert len(calls) == 2
+
+
+def test_changed_gun_facts_relabel_from_the_saved_faces(tmp_path, monkeypatch):
+    src, rig = tmp_path / "src.blend", tmp_path / "rig.blend"
+    src.write_bytes(b"a")
+    rig.write_bytes(b"b")
+    calls = []
+
+    def fake_faces(*a):
+        calls.append(a)
+        (tmp_path / "out" / "faces.json").write_text(json.dumps({"faces": []}))
+        return []
+
+    monkeypatch.setattr(M, "faces_from_blender", fake_faces)
+    monkeypatch.setattr(M, "build", lambda faces, gun: {"contract": M.CONTRACT, "status": "PASS", "checks": []})
+    M.label("M1911A1", str(src), str(rig), "Mesh", str(tmp_path / "out"))
+    monkeypatch.setitem(M.GUNS["M1911A1"], "mass_kg", 1.3)
+    assert M.label("M1911A1", str(src), str(rig), "Mesh", str(tmp_path / "out"))["cached"] is False
+    assert len(calls) == 1  # Blender ran once; the second label read faces.json
+
+
+def test_a_sourced_part_mass_is_kept_and_the_rest_meets_the_listed_mass():
+    def box(part, x0, finish):
+        # a closed 1 cm cube at x0 (m), six outward quads
+        s, out = 0.01, []
+        for ax in range(3):
+            for sign in (-1, 1):
+                n = [0, 0, 0]
+                n[ax] = sign
+                c = [x0 + s / 2, s / 2, s / 2]
+                c[ax] += sign * s / 2
+                out.append({"part": part, "finish": finish, "c": c, "n": n, "a": s * s, "v": [c] * 4})
+        return out
+    faces = box("magazine", 0.0, "M_blued") + box("frame", 0.05, "M_parkerized")
+    fr = {"forward": [1, 0, 0], "up": [0, 0, 1], "left": [0, 1, 0], "bore_point": [0, 0, 0]}
+    parts, centre, _ = M.part_records(faces, M.GUNS["M1911A1"], fr)
+    assert parts["magazine"]["mass"]["value"] == 218.18
+    assert parts["frame"]["mass"]["value"] == pytest.approx(1253 - 218.18, abs=0.01)

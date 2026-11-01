@@ -42,6 +42,9 @@ GUNS = {
     "M1911A1": {
         "mass_kg": 1.253,
         "mass_source": "FM 23-35 p.8: 2.437 lb with empty magazine + 0.325 lb of 7 rounds",
+        # parts with their own sourced mass; the other parts share the rest by volume x density
+        "part_mass_g": {"magazine": (218.18, "FM 23-35 p.8: loaded magazine 0.481 lb. Owner 2026-11-01: use the "
+                                    "sourced magazine mass (the mesh magazine is a solid block)")},
         "barrel": "barrel", "grip": "stocks", "slide": "slide", "frame": "frame", "trigger": "trigger",
         "left_mark": "thumb_safety", "sights": ["sight_rear", "sight_front"],
         "roles": {
@@ -371,19 +374,28 @@ def part_records(faces, gun, fr):
                                    "measured: hold mesh faces, divergence theorem",
                                    f"open or non-manifold edges: {open_edges} (0 = closed)"),
                      "open_edges": open_edges}
-    k = gun["mass_kg"] * 1000 / raw_total
+    fixed = {n: v for n, v in gun.get("part_mass_g", {}).items() if n in out}
+    raw_rest = raw_total - sum(out[n]["_raw_g"] for n in fixed)
+    k = (gun["mass_kg"] * 1000 - sum(g for g, _ in fixed.values())) / raw_rest
     total = [0.0, 0.0, 0.0]
     for name, p in out.items():
-        g = p.pop("_raw_g") * k
+        raw = p.pop("_raw_g")
         c = p.pop("_centre")
-        p["mass"] = rec(round(g, 2), "g", "part mass: volume x density, scaled to the gun's listed mass", name,
-                        "value", gun["mass_source"], f"scale {k:.4f} from {raw_total:.1f} g raw")
+        if name in fixed:
+            g, src = fixed[name]
+            p["mass"] = rec(g, "g", "part mass: sourced", name, "value", src, f"volume x density gave {raw:.1f} g")
+        else:
+            g = raw * k
+            p["mass"] = rec(round(g, 2), "g", "part mass: volume x density, scaled so the gun meets its listed mass",
+                            name, "value", gun["mass_source"],
+                            f"scale {k:.4f}; {raw_total:.1f} g raw for the whole gun")
         for i in range(3):
             total[i] += g * c[i]
     com = [t / (gun["mass_kg"] * 1000) for t in total]
     centre = rec([round(v, 3) for v in local(com, fr)], "cm (forward, up, left)", "mass centre of the gun",
                  "gun", "point", "volume x sourced density per part, scaled to " + gun["mass_source"],
-                 "owner 2026-11-01: mesh volume x density scaled to 1.253 kg")
+                 "owner 2026-11-01: mesh volume x density scaled to 1.253 kg; sourced part masses kept: "
+                 + (", ".join(fixed) or "none"))
     return out, centre, round(raw_total, 1)
 
 
@@ -476,12 +488,17 @@ def label(gun: str, source_blend: str, rig_blend: str, mesh: str, out_dir: str, 
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     cache = out / "meaning.json"
-    hashes = {"source_blend": sha(source_blend), "rig_blend": sha(rig_blend)}
-    if cache.exists() and not force:
-        old = json.loads(cache.read_text(encoding="utf-8"))
-        if old.get("inputs", {}).get("sha256") == hashes and old.get("contract") == CONTRACT:
-            return brief(old, cache, cached=True)
-    faces = faces_from_blender(source_blend, rig_blend, mesh, out, blender)
+    facts = json.dumps({"gun": GUNS[gun], "materials": MATERIALS}, sort_keys=True, default=str).encode()
+    hashes = {"source_blend": sha(source_blend), "rig_blend": sha(rig_blend),
+              "facts": hashlib.sha256(facts).hexdigest()}
+    old = json.loads(cache.read_text(encoding="utf-8")) if cache.exists() else {}
+    if old.get("inputs", {}).get("sha256") == hashes and old.get("contract") == CONTRACT and not force:
+        return brief(old, cache, cached=True)
+    same_blends = all(old.get("inputs", {}).get("sha256", {}).get(k) == hashes[k] for k in ("source_blend", "rig_blend"))
+    if same_blends and (out / "faces.json").exists() and not force:
+        faces = json.loads((out / "faces.json").read_text(encoding="utf-8"))["faces"]  # only the facts changed
+    else:
+        faces = faces_from_blender(source_blend, rig_blend, mesh, out, blender)
     result = build(faces, gun)
     result["inputs"] = {"source_blend": str(source_blend), "rig_blend": str(rig_blend), "mesh": mesh,
                         "sha256": hashes}
