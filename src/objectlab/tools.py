@@ -1,6 +1,7 @@
 """The 7 tools of Object Lab: tool -> (summary, [(module, function, action)]).
 
-Each action calls the existing lab function unchanged. 57 former tools.
+Each action calls the existing lab function unchanged. 57 former tools, plus `label` (plan Step 1, new code in
+objectlab.meaning).
 """
 
 TOOLS = {'object_source': ('Sources of an object: add a manual, patent or photo, scan it, read pages, text and specs, keep '
@@ -22,7 +23,7 @@ TOOLS = {'object_source': ('Sources of an object: add a manual, patent or photo,
                    ('weaponlab.server', 'blueprint_measure', 'measure'),
                    ('weaponlab.server', 'blueprint_photomap', 'photomap')]),
  'object_part': ('Define parts: new blueprint, parts, holes, marks, views, lofts, follow and cross-section shapes, '
-                 'rounding, bevels, features, rounds.',
+                 'rounding, bevels, features, rounds; label every face with its part and role (Step 1).',
                  [('weaponlab.server', 'blueprint_new', 'new'),
                   ('weaponlab.server', 'blueprint_part', 'part'),
                   ('weaponlab.server', 'blueprint_hole', 'hole'),
@@ -34,7 +35,8 @@ TOOLS = {'object_source': ('Sources of an object: add a manual, patent or photo,
                   ('weaponlab.server', 'blueprint_round_corners', 'round_corners'),
                   ('weaponlab.server', 'blueprint_bevel', 'bevel'),
                   ('weaponlab.server', 'blueprint_feature', 'feature'),
-                  ('weaponlab.server', 'blueprint_round', 'round')]),
+                  ('weaponlab.server', 'blueprint_round', 'round'),
+                  ('objectlab.meaning', 'label', 'label')]),
  'object_build': ('Build the model: from a blueprint, to Gun Kit, or a Model Lab gun and its clips.',
                   [('weaponlab.server', 'blueprint_build', 'build'),
                    ('weaponlab.server', 'blueprint_to_gunkit', 'to_gunkit'),

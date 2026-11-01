@@ -18,7 +18,8 @@ def test_the_tools_are_the_cut():
 
 def test_every_former_tool_is_one_action():
     pairs = [(m, f) for _, spec in TOOLS.values() for m, f, _ in spec]
-    assert len(pairs) == len(set(pairs)) == 57
+    former = [p for p in pairs if p[0] != "objectlab.meaning"]
+    assert len(pairs) == len(set(pairs)) and len(former) == 57 and len(pairs) == 58
     for m, f in pairs:
         assert callable(getattr(importlib.import_module(m), f))
 
