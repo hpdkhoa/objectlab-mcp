@@ -120,3 +120,10 @@ def test_a_sourced_part_mass_is_kept_and_the_rest_meets_the_listed_mass():
     parts, centre, _ = M.part_records(faces, M.GUNS["M1911A1"], fr)
     assert parts["magazine"]["mass"]["value"] == 218.18
     assert parts["frame"]["mass"]["value"] == pytest.approx(1253 - 218.18, abs=0.01)
+
+
+def test_ring_middle_and_its_opening_at_that_height():
+    sq = [(0, 0), (4, 0), (4, 2), (0, 2)]
+    assert M.poly_centroid(sq) == pytest.approx((2.0, 1.0))
+    assert M.crossings(sq, 1, 1.0) == pytest.approx([0.0, 4.0])  # the opening along forward at up = 1
+    assert M.crossings(sq, 0, 3.0) == pytest.approx([0.0, 2.0])  # bottom and top at forward = 3

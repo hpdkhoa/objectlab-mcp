@@ -21,9 +21,9 @@ unchanged. Merged from: weaponlab-mcp (Blueprint Lab), modellab-mcp, coatinglab-
 
 `label` gives every face of a hold mesh its part, by exact vertex match with the build that has one object per
 part. A face with no part stops the run. Contact faces get a role (`grip_back`, `grip_front`, `grip_side_l`,
-`grip_side_r`, `guard`, `trigger_blade`, `top`, `thumb_rest`, `bore_axis`). Each role has a written definition and a
-check with numbers, and a failed check stops the run. Each part gets material, density, friction, volume and mass. The
-gun gets its mass centre. The result goes to `meaning.json`, which a changed blend makes stale. Blender runs headless:
+`grip_side_r`, `guard`, `trigger_blade`, `top`, `thumb_rest`, `bore_axis`, and the line `line_b`). Each role has a written definition and a
+check with numbers, and a failed check stops the run. Each part gets material, density, friction, volume and mass; a part with a sourced mass keeps it. The
+gun gets its mass centre. The result goes to `meaning.json`, which a changed blend or changed gun facts make stale. Blender runs headless:
 pass `blender=` or set `OBJECTLAB_BLENDER`.
 
 ## Install

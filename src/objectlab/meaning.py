@@ -69,6 +69,12 @@ GUNS = {
                       "definition": "a closed loop around the trigger: the frame faces cut by the middle plane "
                                     "that lie in front of the opening's rear and below its top"},
         },
+        "line_b": {"side": "r", "definition": "line B (a line): parallel to the bore, on the frame's firing-side "
+                   "face, its middle at the trigger ring's middle height, as long as the ring's opening at that "
+                   "height; the face depth read just above the opening at both ends (Pose Lab, owner decisions "
+                   "2026-10-21/22; fakepose measure_line_b)",
+                   "owner": "Owner 2026-11-01: line B \"Add role line_b\". Owner 2026-10-22: \"the index can be "
+                   "straight in B line position without the need of touch B point, just keep it close\"."},
         "role_owner": "Owner 2026-11-01: \"Yes, these roles\" (grip_back, grip_front, grip_side_l/r, guard, "
                       "trigger_blade, top, thumb_rest, bore_axis).",
     },
@@ -331,7 +337,84 @@ def label_roles(faces, gun, fr):
     if "thumb_rest" in roles:
         c = cen("thumb_rest")
         ok("thumb_rest: on the left side", c[2] > 0, {"centre_left_cm": c[2]}, gun["roles"]["thumb_rest"]["definition"])
+    if hole and "line_b" in gun:
+        lb = line_b(hole[0], frame, gun["line_b"], fr, ok)
+        if lb:
+            roles["line_b"] = lb
     return roles, checks, opening
+
+
+def poly_centroid(pts):
+    a = cx = cy = 0.0
+    for i in range(len(pts)):
+        (x0, y0), (x1, y1) = pts[i - 1], pts[i]
+        w = x0 * y1 - x1 * y0
+        a += w
+        cx += (x0 + x1) * w
+        cy += (y0 + y1) * w
+    return cx / (3 * a), cy / (3 * a)
+
+
+def crossings(poly, axis, value):
+    """Where the closed polygon (forward, up) crosses the line axis = value; the other coordinate, sorted."""
+    o = 1 - axis
+    out = []
+    for i in range(len(poly)):
+        a, b = poly[i - 1], poly[i]
+        if (a[axis] < value) != (b[axis] < value):
+            t = (value - a[axis]) / (b[axis] - a[axis])
+            out.append(a[o] + t * (b[o] - a[o]))
+    return sorted(out)
+
+
+def face_depth(frame, f_cm, u_cm, sign, fr):
+    """The left value (cm) of the frame's outside face on the firing side at (forward, up); None if no face there."""
+    best = None
+    for f in frame:
+        if f["ray"] != "escapes" or f["dom"] != ("-left" if sign < 0 else "+left"):
+            continue
+        if not inside((f_cm, u_cm), [tuple(local(p, fr)[:2]) for p in f["v"]]):
+            continue
+        n = ldir(f["n"], fr)
+        c = f["L"]
+        d = c[2] - (n[0] * (f_cm - c[0]) + n[1] * (u_cm - c[1])) / n[2]  # the face's plane at (f, u)
+        if best is None or d * sign > best * sign:
+            best = d
+    return best
+
+
+def line_b(hole, frame, spec, fr, ok):
+    """Line B measured on the labelled faces (see GUNS line_b definition). Returns its record or None."""
+    sign = -1 if spec["side"] == "r" else 1  # the firing side of a right hand is the gun's right (-left)
+    fc, uc = poly_centroid(hole)
+    xs = crossings(hole, 1, uc)
+    span = next(((a, b) for a, b in zip(xs[::2], xs[1::2]) if a <= fc <= b), None)
+    depths = []
+    if span:
+        for fe in span:
+            tops = crossings(hole, 0, fe + (1e-3 if fe == span[0] else -1e-3))
+            u_probe = (max(tops) if tops else uc) + 0.05  # just above the opening at this end
+            d = face_depth(frame, fe, u_probe, sign, fr)
+            depths.append(d)
+    good = span is not None and all(d is not None for d in depths)
+    ok("line_b: the frame's firing-side face found above both ends of the ring's opening", good,
+       {"ring_middle_cm": [round(fc, 3), round(uc, 3)], "opening_at_middle_cm": span and [round(v, 3) for v in span],
+        "face_left_cm": [d and round(d, 3) for d in depths]}, spec["definition"])
+    if not good:
+        return None
+    x = sum(depths) / 2
+    ends = [[round(span[0], 3), round(uc, 3), round(x, 3)], [round(span[1], 3), round(uc, 3), round(x, 3)]]
+    ok("line_b: on the firing side, the face flat along it", x * sign > 0 and abs(depths[0] - depths[1]) < 0.05,
+       {"face_left_cm": [round(d, 3) for d in depths], "side": spec["side"]}, spec["definition"])
+    src = "measured: the guard opening from the middle cut, the face depth from the frame's labelled faces"
+    return {"definition": spec["definition"], "parts": ["frame"], "side": spec["side"], "owner": spec["owner"],
+            "line": rec({"ends_cm": ends, "direction": [1.0, 0.0, 0.0]}, "cm (forward, up, left)",
+                        "line B: index straight along it, close, not pressing", "line_b", "line", src,
+                        "parallel to the bore by construction; middle at the ring's middle height"),
+            "length": rec(round(span[1] - span[0], 3), "cm", "the ring's opening length at its middle height",
+                          "line_b", "value", src, spec["definition"]),
+            "middle": rec([round((span[0] + span[1]) / 2, 3), round(uc, 3), round(x, 3)], "cm (forward, up, left)",
+                          "the middle of line B", "line_b", "point", src, "ring's middle height: 0 cm off")}
 
 
 # ---------- parts: material, volume, mass ----------
